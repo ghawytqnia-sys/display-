@@ -202,10 +202,13 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
           <thead>
             <tr>
               <th>القسم</th>
-              <th>منتجات العربي<br><small style="font-weight:400;color:#f87171">قبل</small></th>
               <th>إجمالي المنتجات<br><small style="font-weight:400;color:#f87171">قبل</small></th>
-              <th>منتجات العربي<br><small style="font-weight:400;color:#34d399">بعد</small></th>
+               <th>منتجات العربي<br><small style="font-weight:400;color:#f87171">قبل</small></th>
+               
               <th>إجمالي المنتجات<br><small style="font-weight:400;color:#34d399">بعد</small></th>
+                            <th>منتجات العربي<br><small style="font-weight:400;color:#34d399">بعد</small></th>
+              
+
               <th>نسبة العرض<br><small style="font-weight:400;color:#f87171">قبل</small></th>
               <th>نسبة العرض<br><small style="font-weight:400;color:#34d399">بعد</small></th>
               <th>فرق النسبة</th>
@@ -392,10 +395,10 @@ function addSectionRow(name = '', icon = '📦') {
       <input type="text" class="field-input" id="secname_custom_${id}" placeholder="اسم القسم..."
         style="display:none;margin-top:6px;padding:8px;font-size:13px" oninput="liveCalc()"/>
     </td>
-    <td><input type="number" class="num-input" id="arabi_before_${id}" min="0" value="" placeholder="0" oninput="calcRow(${id})"/></td>
-    <td><input type="number" class="num-input" id="total_before_${id}" min="0" value="" placeholder="0" oninput="calcRow(${id})"/></td>
-    <td><input type="number" class="num-input" id="arabi_after_${id}" min="0" value="" placeholder="0" oninput="calcRow(${id})"/></td>
-    <td><input type="number" class="num-input" id="total_after_${id}" min="0" value="" placeholder="0" oninput="calcRow(${id})"/></td>
+<td><input type="number" class="num-input" id="total_before_${id}" min="0" value="" placeholder="0" oninput="syncField(${id}, 'total'); calcRow(${id})"/></td>
+    <td><input type="number" class="num-input" id="arabi_before_${id}" min="0" value="" placeholder="0" oninput="syncField(${id}, 'arabi'); calcRow(${id})"/></td>
+    <td><input type="number" class="num-input" id="total_after_${id}" min="0" value="" placeholder="0" oninput="markManual(${id}, 'total'); calcRow(${id})"/></td>
+    <td><input type="number" class="num-input" id="arabi_after_${id}" min="0" value="" placeholder="0" oninput="markManual(${id}, 'arabi'); calcRow(${id})"/></td>
     <td class="pct-cell pct-before" id="pctBefore_${id}">—</td>
     <td class="pct-cell pct-after" id="pctAfter_${id}">—</td>
     <td class="pct-cell" id="pctDiff_${id}">—</td>
@@ -423,14 +426,37 @@ function deleteRow(id) {
 }
 
 // ══════════════════════════════════════════
+// المزامنة الذكية للإجمالي ومنتجات العربي (قبل وبعد)
+// ══════════════════════════════════════════
+function syncField(id, type) {
+  const beforeInput = document.getElementById(`${type}_before_${id}`);
+  const afterInput = document.getElementById(`${type}_after_${id}`);
+  
+  // نقوم بنسخ الرقم فقط إذا لم يقم المستخدم بتعديل حقل "بعد" يدوياً
+  if (afterInput && beforeInput && afterInput.dataset.manual !== 'true') {
+    afterInput.value = beforeInput.value;
+  }
+}
+
+function markManual(id, type) {
+  const afterInput = document.getElementById(`${type}_after_${id}`);
+  if (afterInput) {
+    // إذا قام المستخدم بالتعديل اليدوي نضع علامة تمنع النسخ التلقائي
+    // وإذا قام بمسح الحقل تماماً نلغي العلامة ليعود للمزامنة التلقائية
+    afterInput.dataset.manual = afterInput.value === '' ? 'false' : 'true';
+  }
+}
+
+// ══════════════════════════════════════════
 // Per-Row Calculation
 // ══════════════════════════════════════════
 function calcRow(id) {
-  const ab = parseInt(document.getElementById(`arabi_before_${id}`)?.value) || 0;
-  const tb = parseInt(document.getElementById(`total_before_${id}`)?.value) || 0;
-  const aa = parseInt(document.getElementById(`arabi_after_${id}`)?.value) || 0;
-  const ta = parseInt(document.getElementById(`total_after_${id}`)?.value) || 0;
+  const tb = parseInt(document.getElementById(`total_before_${id}`)?.value) || 0; // الإجمالي قبل
+  const ab = parseInt(document.getElementById(`arabi_before_${id}`)?.value) || 0; // العربي قبل
+  const ta = parseInt(document.getElementById(`total_after_${id}`)?.value) || 0;  // الإجمالي بعد
+  const aa = parseInt(document.getElementById(`arabi_after_${id}`)?.value) || 0;  // العربي بعد
 
+  // النسبة = (العربي / الإجمالي) * 100
   const pctB = tb > 0 ? ((ab / tb) * 100).toFixed(1) : null;
   const pctA = ta > 0 ? ((aa / ta) * 100).toFixed(1) : null;
 
@@ -522,26 +548,28 @@ function validateInputs() {
   const rows = document.querySelectorAll('#sectionsBody tr');
   let valid = true;
   rows.forEach(row => {
-    const id = row.id.replace('secrow_', '');
-    ['arabi_before_', 'total_before_', 'arabi_after_', 'total_after_'].forEach(prefix => {
+    const id = row.id.replace('secrow_', '');['total_before_', 'arabi_before_', 'total_after_', 'arabi_after_'].forEach(prefix => {
       const input = document.getElementById(prefix + id);
       if (input && parseInt(input.value) < 0) {
         input.value = 0;
       }
     });
-    const ab = parseInt(document.getElementById(`arabi_before_${id}`)?.value) || 0;
+    
     const tb = parseInt(document.getElementById(`total_before_${id}`)?.value) || 0;
-    const aa = parseInt(document.getElementById(`arabi_after_${id}`)?.value) || 0;
+    const ab = parseInt(document.getElementById(`arabi_before_${id}`)?.value) || 0;
     const ta = parseInt(document.getElementById(`total_after_${id}`)?.value) || 0;
+    const aa = parseInt(document.getElementById(`arabi_after_${id}`)?.value) || 0;
+    
+    // تصحيح الأخطاء إذا كان منتجات العربي أكثر من الإجمالي
     if (ab > tb && tb > 0) {
       document.getElementById(`arabi_before_${id}`).value = tb;
       valid = false;
-      showToast('عدد منتجات العربي لا يمكن أن يتجاوز الإجمالي — تم التصحيح تلقائياً', 'error');
+      showToast('عدد منتجات العربي لا يمكن أن يتجاوز الإجمالي (قبل) — تم التصحيح', 'error');
     }
     if (aa > ta && ta > 0) {
       document.getElementById(`arabi_after_${id}`).value = ta;
       valid = false;
-      showToast('عدد منتجات العربي لا يمكن أن يتجاوز الإجمالي — تم التصحيح تلقائياً', 'error');
+      showToast('عدد منتجات العربي لا يمكن أن يتجاوز الإجمالي (بعد) — تم التصحيح', 'error');
     }
   });
   return valid;
