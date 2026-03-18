@@ -766,6 +766,66 @@ function resetForm() {
   rowId = 0;
   initDefaultSections();
 }
+// ══════════════════════════════════════════
+// حماية حقوق الملكية - Abdelmoneim 2026
+// ══════════════════════════════════════════
+(function protectCopyright() {
+  const crId = 'abdelmoneim-cr';
+  const crText = 'جميع الحقوق محفوظة © 2026 Abdelmoneim';
+  
+  function createFooter() {
+    let el = document.getElementById(crId);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = crId;
+      // شكل الفوتر الجمالي
+      el.innerHTML = `جميع الحقوق محفوظة &copy; 2026 <span style="color:var(--pl); font-weight:900; margin-right:4px;">Abdelmoneim</span>`;
+      el.style.cssText = 'text-align:center; padding:20px 10px 0px; font-size:14px; color:var(--tm); font-weight:700; width:100%; z-index:999; position:relative; letter-spacing:0.5px; opacity:0.8; transition:opacity 0.3s;';
+      
+      const wrapper = document.querySelector('.page-wrapper') || document.body;
+      wrapper.appendChild(el);
+    }
+  }
+
+  function checkTampering() {
+    const el = document.getElementById(crId);
+    if (!el) return blockSystem(); // إذا تم حذف العنصر من الـ HTML
+    
+    // تنظيف النص للتحقق من تطابقه تماماً
+    const currentText = el.innerText.replace(/\s+/g, ' ').trim();
+    
+    // التحقق من خصائص الـ CSS للتأكد من عدم إخفائه
+    const style = window.getComputedStyle(el);
+    
+    if (currentText !== crText || 
+        style.display === 'none' || 
+        style.visibility === 'hidden' || 
+        parseFloat(style.opacity) === 0 || 
+        style.fontSize === '0px') {
+      blockSystem();
+    }
+  }
+
+  function blockSystem() {
+    // تدمير واجهة النظام وإظهار رسالة الإغلاق
+    document.body.innerHTML = `
+      <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#0a1628; color:#ef4444; font-family:'Cairo', sans-serif; font-size:clamp(18px, 4vw, 24px); font-weight:900; text-align:center; padding:20px; line-height:1.8;">
+        <div>
+          <span style="font-size:48px; display:block; margin-bottom:15px;">🛑</span>
+          تحذير أمني!<br>
+          تم التلاعب بحقوق الملكية الخاصة بالمبرمج<br>
+          <span style="color:#38bdf8;">(Abdelmoneim 2026)</span><br>
+          <span style="font-size:16px; color:#7dd3fc; margin-top:15px; display:block; font-weight:600;">تم إيقاف النظام برمجياً. يرجى استعادة الكود الأصلي.</span>
+        </div>
+      </div>`;
+  }
+
+  // 1. إنشاء الفوتر عند تحميل الصفحة
+  createFooter();
+
+  // 2. عمل فحص مستمر (كل ثانية) لضمان عدم تلاعب أي شخص بالكود أثناء التشغيل
+  setInterval(checkTampering, 1000);
+})();
 </script>
 </body>
 </html>
