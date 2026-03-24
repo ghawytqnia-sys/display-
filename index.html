@@ -224,7 +224,7 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
 
       <div class="buttons-row">
         <button class="calc-btn" onclick="calculate(true)">🔢 احسب النسب الآن</button>
-        <button class="send-btn" id="sendBtn" onclick="sendReport()">📤 إرسال التقرير إلى لوحة التحكم</button>
+        <button class="send-btn" id="sendBtn" onclick="sendReport()">إرسال التقرير</button>
       </div>
 
       <div id="resultsSection" style="display:none">
@@ -451,12 +451,11 @@ function markManual(id, type) {
 // Per-Row Calculation
 // ══════════════════════════════════════════
 function calcRow(id) {
-  const tb = parseInt(document.getElementById(`total_before_${id}`)?.value) || 0; // الإجمالي قبل
-  const ab = parseInt(document.getElementById(`arabi_before_${id}`)?.value) || 0; // العربي قبل
-  const ta = parseInt(document.getElementById(`total_after_${id}`)?.value) || 0;  // الإجمالي بعد
-  const aa = parseInt(document.getElementById(`arabi_after_${id}`)?.value) || 0;  // العربي بعد
+  const tb = parseInt(document.getElementById(`total_before_${id}`)?.value) || 0;
+  const ab = parseInt(document.getElementById(`arabi_before_${id}`)?.value) || 0;
+  const ta = parseInt(document.getElementById(`total_after_${id}`)?.value) || 0;
+  const aa = parseInt(document.getElementById(`arabi_after_${id}`)?.value) || 0;
 
-  // النسبة = (العربي / الإجمالي) * 100
   const pctB = tb > 0 ? ((ab / tb) * 100).toFixed(1) : null;
   const pctA = ta > 0 ? ((aa / ta) * 100).toFixed(1) : null;
 
@@ -468,9 +467,13 @@ function calcRow(id) {
   cellA.textContent = pctA !== null ? pctA + '%' : '—';
 
   if (pctB !== null && pctA !== null) {
-    const diff = (parseFloat(pctA) - parseFloat(pctB)).toFixed(1);
-    const d = parseFloat(diff);
-    cellD.textContent = (d > 0 ? '+' : '') + diff + '%';
+    let d = parseFloat(pctA) - parseFloat(pctB);
+    
+    // معالجة مشكلة الأصفار العشرية (-0.0) 
+    if (Math.abs(d) < 0.05) d = 0;
+
+    const diffStr = d === 0 ? "0" : d.toFixed(1);
+    cellD.textContent = (d > 0 ? '+' : '') + diffStr + '%';
     cellD.className = 'pct-cell ' + (d > 0 ? 'diff-positive' : d < 0 ? 'diff-negative' : 'diff-zero');
   } else {
     cellD.textContent = '—';
@@ -520,7 +523,9 @@ function gatherData() {
 
     const pctBefore = totalB > 0 ? parseFloat(((arabiB / totalB) * 100).toFixed(1)) : 0;
     const pctAfter = totalA > 0 ? parseFloat(((arabiA / totalA) * 100).toFixed(1)) : 0;
-    const diff = parseFloat((pctAfter - pctBefore).toFixed(1));
+    let diff = parseFloat((pctAfter - pctBefore).toFixed(1));
+    
+    if (Math.abs(diff) === 0) diff = 0; // تنظيف النتيجة إذا كانت صفرية
 
     sections.push({
       label: secName,
@@ -536,7 +541,9 @@ function gatherData() {
 
   const avgBefore = totalTB > 0 ? parseFloat(((totalAB / totalTB) * 100).toFixed(1)) : 0;
   const avgAfter = totalTA > 0 ? parseFloat(((totalAA / totalTA) * 100).toFixed(1)) : 0;
-  const avgDiff = parseFloat((avgAfter - avgBefore).toFixed(1));
+  let avgDiff = parseFloat((avgAfter - avgBefore).toFixed(1));
+  
+  if (Math.abs(avgDiff) === 0) avgDiff = 0; // تنظيف النتيجة الإجمالية إذا كانت صفر
 
   return { branch, agent, timestamp, sections, avgBefore, avgAfter, avgDiff, totalAB, totalTB, totalAA, totalTA };
 }
@@ -585,9 +592,11 @@ function renderResults(doScroll) {
   document.getElementById('resultsSection').style.display = '';
   document.getElementById('resBefore').textContent = d.avgBefore + '%';
   document.getElementById('resAfter').textContent = d.avgAfter + '%';
+  
   const diffVal = d.avgDiff;
-  document.getElementById('resDiff').textContent = (diffVal > 0 ? '+' : '') + diffVal + '%';
-  document.getElementById('resDiff').style.color = diffVal > 0 ? '#34d399' : diffVal < 0 ? '#f87171' : '#a78bfa';
+  // التعديل هنا: طباعة 0% بشكل صريح وتعديل لون الصفر ليكون لون محايد
+  document.getElementById('resDiff').textContent = diffVal === 0 ? '0%' : (diffVal > 0 ? '+' : '') + diffVal + '%';
+  document.getElementById('resDiff').style.color = diffVal > 0 ? '#34d399' : diffVal < 0 ? '#f87171' : 'var(--tm)';
 
   const tbody = document.getElementById('resultBody');
   tbody.innerHTML = '';
@@ -600,6 +609,10 @@ function renderResults(doScroll) {
     const tr = document.createElement('tr');
     const diffClass = s.diff > 0 ? 'diff-positive' : s.diff < 0 ? 'diff-negative' : 'diff-zero';
     const arrow = s.diff > 0 ? '↑' : s.diff < 0 ? '↓' : '→';
+    
+    // التعديل هنا: طباعة 0% صريحة داخل الجدول
+    const diffDisp = s.diff === 0 ? '0%' : (s.diff > 0 ? '+' : '') + s.diff + '%';
+
     const rating = s.pctAfter >= 50 ? '⭐⭐⭐ ممتاز' : s.pctAfter >= 30 ? '⭐⭐ جيد' : '⭐ يحتاج تحسين';
     const ratingColor = s.pctAfter >= 50 ? '#34d399' : s.pctAfter >= 30 ? '#fbbf24' : '#f87171';
 
@@ -622,13 +635,13 @@ function renderResults(doScroll) {
           <div class="pbar-mini"><div class="pbar-mini-fill after" style="width:${Math.min(s.pctAfter,100)}%"></div></div>
         </div>
       </td>
-      <td class="${diffClass}" style="font-size:15px;font-weight:900">${arrow} ${s.diff > 0 ? '+' : ''}${s.diff}%</td>
+      <td class="${diffClass}" style="font-size:15px;font-weight:900">${arrow} ${diffDisp}</td>
       <td style="color:${ratingColor};font-size:12px;font-weight:700">${rating}</td>
     `;
     tbody.appendChild(tr);
   });
 
-  document.getElementById('bestSection').textContent = bestSection ? `${bestSection} (+${bestDiff}%)` : '—';
+  document.getElementById('bestSection').textContent = bestSection ? `${bestSection} (${bestDiff > 0 ? '+' : ''}${bestDiff}%)` : '—';
   document.getElementById('weakSection').textContent = weakSection ? `${weakSection} (${weakAfter}%)` : '—';
   document.getElementById('improvedCount').textContent = improved + ' قسم';
   document.getElementById('declinedCount').textContent = declined + ' قسم';
@@ -638,7 +651,7 @@ function renderResults(doScroll) {
   if (overallDiff >= 10) rating = '🌟 تحسن ممتاز';
   else if (overallDiff >= 5) rating = '✅ تحسن جيد';
   else if (overallDiff > 0) rating = '📈 تحسن طفيف';
-  else if (overallDiff === 0) rating = '➡️ مستقر';
+  else if (overallDiff === 0) rating = '➡️ مستقر (لا يوجد تغيير)'; // تعديل النص هنا
   else rating = '📉 يحتاج مراجعة';
   document.getElementById('overallRating').textContent = rating;
 
@@ -751,7 +764,7 @@ async function sendReport() {
     setTimeout(resetForm, 2500);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '📤 إرسال التقرير إلى لوحة التحكم';
+    btn.innerHTML = '📤 إرسال التقرير ';
   }
 }
 
